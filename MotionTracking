@@ -1,0 +1,228 @@
+import processing.video.*; 
+import hype.*;
+import hype.extended.colorist.HColorPool;
+import gifAnimation.*;
+
+PImage[] allFrames11;
+PImage[] allFrames10;
+PImage[] allFrames09;
+boolean animateBackground;
+int animationBgValue = 1;
+
+HDrawablePool pool;
+HColorPool colors;
+int numPixels;
+Capture video;
+int[] prevFrame;
+int sensitivity = 100;
+PImage bg;
+PFont f;
+boolean showConfigurations;
+int[] currentPixels;
+
+color c = color(234, 35, 118);
+
+int timer = 1;
+int frameRateCount;
+ 
+void setup() {
+  fullScreen();
+  frameRateCount = (int) frameRate;
+  H.init(this);
+  String[] cameras = Capture.list();
+  if (cameras.length == 0) {
+    println("There are no cameras available for capture.");
+    exit();
+  }
+  else {
+    printArray(cameras);
+    video = new Capture (this, width, height, cameras[9]);
+    numPixels = video.width * video.height;
+    prevFrame = new int[numPixels];
+    currentPixels = new int[numPixels];
+    video.start();
+  }
+  
+  bg = loadImage("bg12.jpg");
+  bg.resize(video.width, video.height);
+  
+  f = createFont("DaimlerCS-Demi.ttf", 46);
+  textFont(f);
+  
+  colors = new HColorPool(#FCB040, #F04E27, #68ADCB, #EA2376);
+  
+  animateBackground = false;
+  allFrames11 = Gif.getPImages(this, "bg11.gif");
+  for (int k = 0; k < allFrames11.length; k++) {
+    allFrames11[k].resize(width, height);
+  }
+  
+  allFrames10 = Gif.getPImages(this, "bg10.gif");
+  for (int k = 0; k < allFrames10.length; k++) {
+    allFrames10[k].resize(width, height);
+  }
+  
+  allFrames09 = Gif.getPImages(this, "bg12.gif");
+  for (int k = 0; k < allFrames09.length; k++) {
+    allFrames09[k].resize(width, height);
+  }
+}
+
+void mousePressed() {
+  c = colors.getColor();
+  redraw();
+}
+ 
+void drawTSSASIA(float x) {
+  
+  fill(255);
+  textSize(96);
+  text("TSS ASIA", x, 95);
+}
+
+void drawMFGTSS(float x) {
+  
+  fill(255);
+  textSize(40);
+  text("#MFGTSS", x, height * 0.95);
+}
+
+int j = 0;
+int m = 0;
+
+void keyPressed() {
+  if (key == CODED) {
+    if (keyCode == UP) {
+      sensitivity++;
+    } else if (keyCode == DOWN) {
+      sensitivity--;
+    } 
+    fill(255);
+    textSize(40);
+    text("Sensitivity : " + sensitivity, width*0.02 , height*0.85);
+  }
+  if (key == CODED) {
+    if (keyCode == RIGHT) {
+      if (frameRateCount < frameRate) {
+        frameRateCount++;
+      }
+    } else if (keyCode == LEFT) {
+      if (frameRateCount > 3) {
+        frameRateCount--;
+      }
+    } 
+    fill(255);
+    textSize(40);
+    text("Frame rate : " + (int)frameRate+"fps", width*0.02 , height*0.8);
+  }
+  if (key == 'q') {
+     showConfigurations = !showConfigurations;
+  }
+  
+  if (key == 'a') {
+    animateBackground = false;
+  }
+  
+  if (key == 'z') {
+     animateBackground = true; 
+     animationBgValue = 1;
+  }
+  
+  if (key == 'x') {
+     animateBackground = true; 
+     animationBgValue = 2;
+  }
+}
+
+void captureEvent(Capture video) {
+  video.read();
+}
+
+void draw() {
+
+  frameRate(frameRateCount);
+  
+  timer++;
+  if (timer == 50) {   
+   mousePressed();
+   timer = 1;
+  }
+  
+  video.loadPixels();
+  loadPixels();
+  
+  for (int i = 0; i < numPixels; i++) {
+    int currColor = video.pixels[i];
+    int prevColor = prevFrame[i];
+    
+    color bgOriginalColor = bg.pixels[i];
+    float r0 = red(bgOriginalColor);
+    float g0 = green(bgOriginalColor);
+    float b0 = blue(bgOriginalColor);
+ 
+    int currR = (currColor >> 16) & 0xFF;
+    int currG = (currColor >> 8) & 0xFF;
+    int currB = currColor & 0xFF;
+ 
+    int prevR = (prevColor >> 16) & 0xFF;
+    int prevG = (prevColor >> 8) & 0xFF;
+    int prevB = prevColor & 0xFF;
+ 
+    int diffR = abs(currR - prevR);
+    int diffG = abs(currG - prevG);
+    int diffB = abs(currB - prevB);
+  
+    int change = diffR + diffG + diffB;
+    if (change > sensitivity) {
+      currentPixels[i] = color(c, 500);
+    }
+    else {
+      
+      if (animateBackground) {
+        tint(255, 126);
+        currentPixels[i] = color(0, 0, 0);
+      }
+      else {
+       currentPixels[i] = color(r0, g0, b0); 
+      }
+    }
+  }
+  
+  updatePixels();
+  arrayCopy(video.pixels, 0, prevFrame, 0, numPixels);
+  
+  loadPixels();
+  for (int k = 0; k < width; k++) {
+     for (int j = 0; j < height; j++) {    
+       pixels[j*width+k] = currentPixels[(width - k - 1) + j*width]; // Reversing x to mirror the image
+     }
+  }
+    
+  updatePixels();
+  
+  if (animateBackground) {
+    if (animationBgValue == 1) {
+      image( allFrames09[frameCount%60], 0, 0 ); //bg09
+      redraw();
+    }
+    else if (animationBgValue == 2) {
+      image( allFrames11[frameCount%2], 0, 0 );// bg11
+      image( allFrames10[frameCount%64], 0, 0 );//bg10
+      redraw();
+    }
+    else {
+      image( allFrames10[frameCount%64], 0, 0 ); //bg09
+      redraw();
+    }
+  }
+  
+  textAlign(LEFT);
+  drawTSSASIA(width * 0.02 );
+  drawMFGTSS(width * 0.90 );
+  
+  if (showConfigurations) {
+    text("Frame rate : " + (int)frameRate+"fps", width*0.02 , height*0.8);
+    text("Sensitivity : " + sensitivity, width*0.02 , height*0.85);
+    text("Camera     : " + video, width*0.02 , height*0.9);
+  }
+}
